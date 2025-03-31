@@ -2,4 +2,12 @@ syntax = "proto3";
 
 package grpc_simulation;
 
+import "request.proto";
+import "response.proto";
 
+service GRPCSimulation {
+    rpc UnaryRPC(HelloRequest) returns (HelloReply);
+    rpc ServerStreamingRPC(HelloRequest) returns (stream HelloReply);
+    rpc ClientStreamingRpc(stream HelloRequest) returns (HelloReply);
+    rpc BiDirectionalStreamingRpc(stream HelloRequest) returns (stream HelloReply);
+}

@@ -1,11 +1,11 @@
 use crate::proto::simulation_server::{Simulation, SimulationServer};
 use crate::proto::{HelloRequest, HelloResponse};
+use dotenv::dotenv;
 use futures::StreamExt;
-use std::fs::File;
-use std::io::Read;
+use std::env;
 use std::pin::Pin;
 use tokio::sync::mpsc;
-use tonic::transport::{Identity, Server, ServerTlsConfig};
+use tonic::transport::{Certificate, Identity, Server, ServerTlsConfig};
 use tonic::{Request, Response, Status, Streaming};
 
 type ResponseStream = Pin<Box<dyn futures::Stream<Item = Result<HelloResponse, Status>> + Send>>;
@@ -114,29 +114,35 @@ impl Simulation for SimulationService {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Load server certificates and key for mTLS
-    let cert_file = &mut File::open("server.crt")?;
-    let mut cert_buf = Vec::new();
-    cert_file.read_to_end(&mut cert_buf)?;
+    dotenv().ok();
 
-    let key_file = &mut File::open("server.key")?;
-    let mut key_buf = Vec::new();
-    key_file.read_to_end(&mut key_buf)?;
+    let cert_file_path = env::var("SERVER_CERT_PATH").expect("SERVER_CERT_PATH not set");
+    let key_file_path = env::var("SERVER_KEY_PATH").expect("SERVER_KEY_PATH not set");
+    let client_file_path = env::var("SERVER_CLIENT_PATH").expect("SERVER_CLIENT_PATH not set");
 
-    let identity = Identity::from_pem(cert_buf, key_buf);
+    let cert = std::fs::read_to_string(cert_file_path)?;
+    let key = std::fs::read_to_string(key_file_path)?;
+    let identity = Identity::from_pem(cert, key);
 
-    let tls_config = ServerTlsConfig::new().identity(identity);
+    let client_ca_cert = std::fs::read_to_string(client_file_path)?;
+    let client_ca_cert = Certificate::from_pem(client_ca_cert);
 
-    // Setup server address
     let addr = "[::1]:50051".parse()?;
     let service = SimulationService::default();
 
+    let tls = ServerTlsConfig::new()
+        .identity(identity)
+        .client_ca_root(client_ca_cert);
+
     // Start the server with mTLS
-    Server::builder()
-        .tls_config(tls_config)?
+    let server_future = Server::builder()
+        .tls_config(tls)?
         .add_service(SimulationServer::new(service))
-        .serve(addr)
-        .await?;
+        .serve(addr);
+
+    println!("Server is running on {}", addr);
+
+    server_future.await?;
 
     Ok(())
 }

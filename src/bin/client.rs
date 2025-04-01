@@ -1,7 +1,7 @@
 use crate::proto::{HelloRequest, simulation_client::SimulationClient};
-use std::fs::File;
-use std::io::Read;
-use tonic::transport::{Certificate, Channel, ClientTlsConfig};
+use dotenv::dotenv;
+use std::env;
+use tonic::transport::{Certificate, Channel, ClientTlsConfig, Identity};
 
 pub mod proto {
     tonic::include_proto!("grpc.simulation");
@@ -9,13 +9,22 @@ pub mod proto {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut ca_cert_file = File::open("ca.crt")?;
-    let mut ca_cert_buf = Vec::new();
-    ca_cert_file.read_to_end(&mut ca_cert_buf)?;
+    dotenv().ok();
 
-    let ca_certificate = Certificate::from_pem(ca_cert_buf);
+    let cert_file_path = env::var("CLIENT_CERT_PATH").expect("CLIENT_CERT_PATH not set");
+    let server_root_file_path = env::var("SERVER_ROOT_PATH").expect("SERVER_ROOT_PATH not set");
+    let key_file_path = env::var("CLIENT_KEY_PATH").expect("CLIENT_KEY_PATH not set");
 
-    let tls = ClientTlsConfig::new().ca_certificate(ca_certificate);
+    let server_root_ca_cert = std::fs::read_to_string(server_root_file_path)?;
+    let server_root_ca_cert = Certificate::from_pem(server_root_ca_cert);
+    let client_cert = std::fs::read_to_string(cert_file_path)?;
+    let client_key = std::fs::read_to_string(key_file_path)?;
+    let client_identity = Identity::from_pem(client_cert, client_key);
+
+    let tls = ClientTlsConfig::new()
+        .domain_name("localhost")
+        .ca_certificate(server_root_ca_cert)
+        .identity(client_identity);
 
     let channel = Channel::from_static("https://[::1]:50051")
         .tls_config(tls)?

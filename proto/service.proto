@@ -13,6 +13,6 @@ message HelloResponse {
 service Simulation {
     rpc UnaryRPC(HelloRequest) returns (HelloResponse);
     rpc ServerStreamingRPC(HelloRequest) returns (stream HelloResponse);
-    // rpc ClientStreamingRpc(stream HelloRequest) returns (HelloResponse);
-    // rpc BiDirectionalStreamingRpc(stream HelloRequest) returns (stream HelloResponse);
+    rpc ClientStreamingRpc(stream HelloRequest) returns (HelloResponse);
+    rpc BiDirectionalStreamingRpc(stream HelloRequest) returns (stream HelloResponse);
 }

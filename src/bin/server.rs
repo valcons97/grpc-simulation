@@ -1,12 +1,18 @@
-use std::{error::Error, io::ErrorKind, net::ToSocketAddrs, pin::Pin, time::Duration};
-
 use crate::proto::simulation_server::{Simulation, SimulationServer};
 use crate::proto::{HelloRequest, HelloResponse};
-use futures::{Stream, StreamExt};
+use futures::StreamExt;
+use std::fs::File;
+use std::io::Read;
+use std::pin::Pin;
 use tokio::sync::mpsc;
+use tonic::transport::{Identity, Server, ServerTlsConfig};
 use tonic::{Request, Response, Status, Streaming};
 
 type ResponseStream = Pin<Box<dyn futures::Stream<Item = Result<HelloResponse, Status>> + Send>>;
+
+pub mod proto {
+    tonic::include_proto!("grpc.simulation");
+}
 
 #[derive(Debug, Default)]
 pub struct SimulationService;
@@ -104,4 +110,33 @@ impl Simulation for SimulationService {
             Box::pin(stream) as Self::BiDirectionalStreamingRpcStream
         ))
     }
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Load server certificates and key for mTLS
+    let cert_file = &mut File::open("server.crt")?;
+    let mut cert_buf = Vec::new();
+    cert_file.read_to_end(&mut cert_buf)?;
+
+    let key_file = &mut File::open("server.key")?;
+    let mut key_buf = Vec::new();
+    key_file.read_to_end(&mut key_buf)?;
+
+    let identity = Identity::from_pem(cert_buf, key_buf);
+
+    let tls_config = ServerTlsConfig::new().identity(identity);
+
+    // Setup server address
+    let addr = "[::1]:50051".parse()?;
+    let service = SimulationService::default();
+
+    // Start the server with mTLS
+    Server::builder()
+        .tls_config(tls_config)?
+        .add_service(SimulationServer::new(service))
+        .serve(addr)
+        .await?;
+
+    Ok(())
 }

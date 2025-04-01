@@ -1,7 +1,0 @@
-syntax = "proto3";
-
-package grpc_simulation;
-
-message HelloReply {
-    string message = 1;
-}

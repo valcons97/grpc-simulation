@@ -1,5 +1,5 @@
-pub mod grpc_service {
-    tonic::include_proto!("grpc_simulation");
+pub mod proto {
+    tonic::include_proto!("grpc.simulation");
 }
 
 pub mod service;

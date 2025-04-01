@@ -1,13 +1,18 @@
 syntax = "proto3";
 
-package grpc_simulation;
+package grpc.simulation;
 
-import "request.proto";
-import "response.proto";
+message HelloRequest {
+    string message = 1;
+}
 
-service GRPCSimulation {
-    rpc UnaryRPC(HelloRequest) returns (HelloReply);
-    rpc ServerStreamingRPC(HelloRequest) returns (stream HelloReply);
-    rpc ClientStreamingRpc(stream HelloRequest) returns (HelloReply);
-    rpc BiDirectionalStreamingRpc(stream HelloRequest) returns (stream HelloReply);
+message HelloResponse {
+    string message = 1;
+}
+
+service Simulation {
+    rpc UnaryRPC(HelloRequest) returns (HelloResponse);
+    rpc ServerStreamingRPC(HelloRequest) returns (stream HelloResponse);
+    // rpc ClientStreamingRpc(stream HelloRequest) returns (HelloResponse);
+    // rpc BiDirectionalStreamingRpc(stream HelloRequest) returns (stream HelloResponse);
 }

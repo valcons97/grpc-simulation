@@ -23,13 +23,10 @@ fn hello_requests_iter() -> impl Stream<Item = HelloRequest> {
 const AES_KEY: [u8; 16] = [0x00; 16]; // Please change your encryption key later
 
 async fn single_rpc(client: &mut SimulationClient<Channel>) {
-    // Original message to send
     let original_message = "Hello from client!";
 
-    // Encrypt the message
     let encrypted_message = encrypt_message(&AES_KEY, original_message);
 
-    // Create the request with the encrypted message
     let request = HelloRequest {
         message: encrypted_message,
     };
@@ -37,7 +34,7 @@ async fn single_rpc(client: &mut SimulationClient<Channel>) {
     match client.unary_rpc(request).await {
         Ok(response) => {
             let decrypted_response = decrypt_message(&AES_KEY, response.get_ref().message.as_str());
-            println!("Response: {:?}", decrypted_response);
+            println!("\tResponse: {:?}", decrypted_response);
         }
         Err(e) => {
             eprintln!("Error: {:?}", e);
@@ -46,20 +43,30 @@ async fn single_rpc(client: &mut SimulationClient<Channel>) {
 }
 
 async fn streaming_client_rpc(client: &mut SimulationClient<Channel>, num: usize) {
-    let requests = stream::iter((1..=num).map(|i| HelloRequest {
-        message: format!("Message {}", i),
+    let requests = stream::iter((1..=num).map(|i| {
+        let message = format!("Message {}", i);
+        let encrypted_message = encrypt_message(&AES_KEY, &message);
+        HelloRequest {
+            message: encrypted_message,
+        }
     }));
 
     let response = client.client_streaming_rpc(requests).await.unwrap();
 
     let reply = response.into_inner();
-    println!("Received: {}", reply.message);
+
+    let decrypted_reply = decrypt_message(&AES_KEY, &reply.message);
+
+    println!("\tResponse: {}", decrypted_reply);
 }
 
 async fn streaming_server_rpc(client: &mut SimulationClient<Channel>, num: usize) {
+    let original_message = "from client".to_string();
+    let encrypted_request = encrypt_message(&AES_KEY, &original_message);
+
     let stream = client
         .server_streaming_rpc(HelloRequest {
-            message: "from client".into(),
+            message: encrypted_request,
         })
         .await
         .unwrap()
@@ -67,7 +74,15 @@ async fn streaming_server_rpc(client: &mut SimulationClient<Channel>, num: usize
 
     let mut stream = stream.take(num);
     while let Some(item) = stream.next().await {
-        println!("\treceived: {}", item.unwrap().message);
+        match item {
+            Ok(encrypted_response) => {
+                let decrypted_message = decrypt_message(&AES_KEY, &encrypted_response.message);
+                println!("\tResponse: {}", decrypted_message);
+            }
+            Err(e) => {
+                eprintln!("Error: {:?}", e);
+            }
+        }
     }
 }
 
@@ -83,7 +98,7 @@ async fn bidirectional_streaming_rpc(client: &mut SimulationClient<Channel>, num
 
     while let Some(received) = resp_stream.next().await {
         let received = received.unwrap();
-        println!("\treceived message: `{}`", received.message);
+        println!("\tResponse: `{}`", received.message);
     }
 }
 
@@ -113,19 +128,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut client = SimulationClient::new(channel);
 
-    println!("Unary rpc:");
+    println!("\r\nUnary rpc:");
     single_rpc(&mut client).await;
     tokio::time::sleep(Duration::from_secs(1)).await;
 
-    println!("Streaming client:");
+    println!("\r\nStreaming client:");
     streaming_client_rpc(&mut client, 5).await;
     tokio::time::sleep(Duration::from_secs(1)).await;
 
-    println!("Streaming server:");
+    println!("\r\nStreaming server:");
     streaming_server_rpc(&mut client, 5).await;
     tokio::time::sleep(Duration::from_secs(1)).await;
 
-    println!("\r\nBidirectional stream echo:");
+    println!("\r\nBidirectional stream rpc:");
     bidirectional_streaming_rpc(&mut client, 17).await;
 
     Ok(())

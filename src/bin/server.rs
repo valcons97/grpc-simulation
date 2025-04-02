@@ -54,10 +54,16 @@ impl Simulation for SimulationService {
     ) -> Result<Response<Self::ServerStreamingRPCStream>, Status> {
         let message = request.into_inner().message;
 
+        let decrypted_message = decrypt_message(&Self::AES_KEY, &message);
+
         let stream_message = async_stream::stream! {
             for i in 1..=3 {
+                let response_message = format!("Hello, {}! ({} times)", decrypted_message, i);
+
+                let encrypted_response = encrypt_message(&Self::AES_KEY, &response_message);
+
                 yield Ok(HelloResponse {
-                    message: format!("Hello, {}! ({} times)", message, i),
+                    message: encrypted_response,
                 });
                 tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
             }
@@ -72,18 +78,24 @@ impl Simulation for SimulationService {
         &self,
         request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<HelloResponse>, Status> {
-        let mut message = Vec::new();
+        let mut decrypted_messages = Vec::new();
         let mut request_stream = request.into_inner();
 
         while let Some(req) = request_stream.next().await {
             match req {
-                Ok(hello_request) => message.push(hello_request.message),
+                Ok(hello_request) => {
+                    let decrypted_message = decrypt_message(&Self::AES_KEY, &hello_request.message);
+                    decrypted_messages.push(decrypted_message);
+                }
                 Err(e) => return Err(Status::invalid_argument(e.to_string())),
             }
         }
 
+        let reply_message = format!("Hello, {}!", decrypted_messages.join(", "));
+        let encrypted_reply = encrypt_message(&Self::AES_KEY, &reply_message);
+
         let reply = HelloResponse {
-            message: format!("Hello, {}!", message.join(", ")),
+            message: encrypted_reply,
         };
 
         Ok(Response::new(reply))

@@ -22,7 +22,7 @@ pub mod proto {
 pub struct SimulationService;
 
 impl SimulationService {
-    const AES_KEY: [u8; 16] = [0x00; 16]; // Please change your encryption key later
+    const AES_KEY: [u8; 16] = [0x00; 16]; // Please change your encryption key later or use .env
 }
 
 #[tonic::async_trait]

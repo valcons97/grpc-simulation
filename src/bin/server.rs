@@ -19,7 +19,6 @@ pub struct SimulationService;
 
 #[tonic::async_trait]
 impl Simulation for SimulationService {
-    // Unary RPC: Handles a single request and returns a single response.
     async fn unary_rpc(
         &self,
         request: Request<HelloRequest>,
@@ -33,7 +32,6 @@ impl Simulation for SimulationService {
 
     type ServerStreamingRPCStream = ResponseStream;
 
-    // Server Streaming RPC: Handles a single request and returns a stream of responses.
     async fn server_streaming_rpc(
         &self,
         request: Request<HelloRequest>,
@@ -54,7 +52,6 @@ impl Simulation for SimulationService {
         Ok(Response::new(boxed_stream))
     }
 
-    // Client Streaming RPC: Handles a stream of requests and returns a single response.
     async fn client_streaming_rpc(
         &self,
         request: Request<Streaming<HelloRequest>>,
@@ -83,9 +80,8 @@ impl Simulation for SimulationService {
         request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<Self::BiDirectionalStreamingRpcStream>, Status> {
         let (tx, rx) = mpsc::channel(4);
-        let mut request_stream = request.into_inner(); // Extract the stream from the request
+        let mut request_stream = request.into_inner();
 
-        // Spawn a task to process the stream and send back responses
         tokio::spawn(async move {
             while let Some(req) = request_stream.next().await {
                 match req {
@@ -94,7 +90,7 @@ impl Simulation for SimulationService {
                             message: format!("Hello, {}!", hello_request.message),
                         };
                         if tx.send(Ok(reply)).await.is_err() {
-                            break; // Channel closed, stop processing.
+                            break;
                         }
                     }
                     Err(_) => break,
@@ -102,10 +98,8 @@ impl Simulation for SimulationService {
             }
         });
 
-        // We need to wrap the receiver (rx) to match the expected stream type:
         let stream = tokio_stream::wrappers::ReceiverStream::new(rx);
 
-        // The return type must be a Pin<Box<dyn Stream<Item = Result<HelloResponse, Status>> + Send>>
         Ok(Response::new(
             Box::pin(stream) as Self::BiDirectionalStreamingRpcStream
         ))
@@ -134,7 +128,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .identity(identity)
         .client_ca_root(client_ca_cert);
 
-    // Start the server with mTLS
     let server_future = Server::builder()
         .tls_config(tls)?
         .add_service(SimulationServer::new(service))

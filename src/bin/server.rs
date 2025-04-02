@@ -1,3 +1,4 @@
+use crate::crypto::{decrypt_message, encrypt_message};
 use crate::proto::simulation_server::{Simulation, SimulationServer};
 use crate::proto::{HelloRequest, HelloResponse};
 use dotenv::dotenv;
@@ -8,6 +9,9 @@ use tokio::sync::mpsc;
 use tonic::transport::{Certificate, Identity, Server, ServerTlsConfig};
 use tonic::{Request, Response, Status, Streaming};
 
+#[path = "services/crypto.rs"]
+mod crypto;
+
 type ResponseStream = Pin<Box<dyn futures::Stream<Item = Result<HelloResponse, Status>> + Send>>;
 
 pub mod proto {
@@ -17,6 +21,10 @@ pub mod proto {
 #[derive(Debug, Default)]
 pub struct SimulationService;
 
+impl SimulationService {
+    const AES_KEY: [u8; 16] = [0x00; 16]; // Please change your encryption key later
+}
+
 #[tonic::async_trait]
 impl Simulation for SimulationService {
     async fn unary_rpc(
@@ -24,10 +32,18 @@ impl Simulation for SimulationService {
         request: Request<HelloRequest>,
     ) -> Result<Response<HelloResponse>, Status> {
         let message = request.into_inner().message;
+
+        let decrypted_message = decrypt_message(&Self::AES_KEY, &message);
+
         let reply = HelloResponse {
-            message: format!("You got, {} message!", message),
+            message: format!("You got, {} message!", decrypted_message),
         };
-        Ok(Response::new(reply))
+
+        let encrypted_reply = encrypt_message(&Self::AES_KEY, &reply.message);
+
+        Ok(Response::new(HelloResponse {
+            message: encrypted_reply,
+        }))
     }
 
     type ServerStreamingRPCStream = ResponseStream;

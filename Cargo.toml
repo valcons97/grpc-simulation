@@ -11,7 +11,10 @@ prost = "0.12"
 async-stream = "0.3.6"
 futures = "0.3.31"
 dotenv = "0.15"
-
+aes = "0.7"  
+block-modes = "0.8"  
+hex = "0.4" 
+rand = "0.8"
 
 [build-dependencies]
 tonic-build = "0.11"

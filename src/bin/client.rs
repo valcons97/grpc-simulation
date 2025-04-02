@@ -1,3 +1,4 @@
+use crate::crypto::{decrypt_message, encrypt_message};
 use crate::proto::{HelloRequest, simulation_client::SimulationClient};
 use dotenv::dotenv;
 use futures::stream;
@@ -5,6 +6,9 @@ use std::env;
 use std::time::Duration;
 use tokio_stream::{Stream, StreamExt};
 use tonic::transport::{Certificate, Channel, ClientTlsConfig, Identity};
+
+#[path = "services/crypto.rs"]
+mod crypto;
 
 pub mod proto {
     tonic::include_proto!("grpc.simulation");
@@ -16,14 +20,24 @@ fn hello_requests_iter() -> impl Stream<Item = HelloRequest> {
     })
 }
 
+const AES_KEY: [u8; 16] = [0x00; 16]; // Please change your encryption key later
+
 async fn single_rpc(client: &mut SimulationClient<Channel>) {
+    // Original message to send
+    let original_message = "Hello from client!";
+
+    // Encrypt the message
+    let encrypted_message = encrypt_message(&AES_KEY, original_message);
+
+    // Create the request with the encrypted message
     let request = HelloRequest {
-        message: "Hello from client!".to_string(),
+        message: encrypted_message,
     };
 
     match client.unary_rpc(request).await {
         Ok(response) => {
-            println!("Response: {:?}", response.get_ref().message);
+            let decrypted_response = decrypt_message(&AES_KEY, response.get_ref().message.as_str());
+            println!("Response: {:?}", decrypted_response);
         }
         Err(e) => {
             eprintln!("Error: {:?}", e);

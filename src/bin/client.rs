@@ -1,5 +1,5 @@
 use crate::crypto::{decrypt_message, encrypt_message};
-use crate::proto::{HelloRequest, simulation_client::SimulationClient};
+use crate::proto::proto::{HelloRequest, simulation_client::SimulationClient};
 use dotenv::dotenv;
 use futures::stream;
 use std::env;
@@ -9,10 +9,8 @@ use tonic::transport::{Certificate, Channel, ClientTlsConfig, Identity};
 
 #[path = "services/crypto.rs"]
 mod crypto;
-
-pub mod proto {
-    tonic::include_proto!("grpc.simulation");
-}
+#[path = "services/proto.rs"]
+mod proto;
 
 fn hello_requests_iter() -> impl Stream<Item = HelloRequest> {
     tokio_stream::iter(1..usize::MAX).map(|i| HelloRequest {

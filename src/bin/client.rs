@@ -12,9 +12,13 @@ mod crypto;
 #[path = "services/proto.rs"]
 mod proto;
 
-fn hello_requests_iter() -> impl Stream<Item = HelloRequest> {
-    tokio_stream::iter(1..usize::MAX).map(|i| HelloRequest {
-        message: format!("msg {:02}", i),
+fn hello_requests_iter(aes_key: &[u8; 16]) -> impl Stream<Item = HelloRequest> {
+    tokio_stream::iter(1..usize::MAX).map(move |i| {
+        let message = format!("msg {:02}", i);
+        let encrypted_message = encrypt_message(aes_key, &message);
+        HelloRequest {
+            message: encrypted_message,
+        }
     })
 }
 
@@ -85,7 +89,7 @@ async fn streaming_server_rpc(client: &mut SimulationClient<Channel>, num: usize
 }
 
 async fn bidirectional_streaming_rpc(client: &mut SimulationClient<Channel>, num: usize) {
-    let in_stream = hello_requests_iter().take(num);
+    let in_stream = hello_requests_iter(&AES_KEY).take(num);
 
     let response = client
         .bi_directional_streaming_rpc(in_stream)
@@ -96,7 +100,9 @@ async fn bidirectional_streaming_rpc(client: &mut SimulationClient<Channel>, num
 
     while let Some(received) = resp_stream.next().await {
         let received = received.unwrap();
-        println!("\tResponse: `{}`", received.message);
+
+        let decrypted_message = decrypt_message(&AES_KEY, &received.message);
+        println!("\tResponse: `{}`", decrypted_message);
     }
 }
 

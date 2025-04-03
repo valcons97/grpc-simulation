@@ -107,10 +107,22 @@ impl Simulation for SimulationService {
             while let Some(req) = request_stream.next().await {
                 match req {
                     Ok(hello_request) => {
+                        let decrypted_message =
+                            decrypt_message(&Self::AES_KEY, &hello_request.message);
+
                         let reply = HelloResponse {
-                            message: format!("Hello, {}!", hello_request.message),
+                            message: format!("Hello, {}!", decrypted_message),
                         };
-                        if tx.send(Ok(reply)).await.is_err() {
+
+                        let encrypted_reply = encrypt_message(&Self::AES_KEY, &reply.message);
+
+                        if tx
+                            .send(Ok(HelloResponse {
+                                message: encrypted_reply,
+                            }))
+                            .await
+                            .is_err()
+                        {
                             break;
                         }
                     }

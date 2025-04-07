@@ -16,8 +16,6 @@ mod proto;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    dotenv::dotenv().ok();
-
     let config = Global::new();
 
     let server_root_ca_cert = std::fs::read_to_string(config.server_root_file_path)?;

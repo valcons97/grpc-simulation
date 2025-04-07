@@ -1,7 +1,6 @@
 use crate::global::Global;
 use crate::proto::proto::simulation_server::SimulationServer;
 use crate::service::SimulationService;
-use dotenv::dotenv;
 use regex::Regex;
 use std::net::SocketAddr;
 use tonic::transport::{Certificate, Identity, Server, ServerTlsConfig};
@@ -15,8 +14,6 @@ mod service;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    dotenv().ok();
-
     let config = Global::new();
 
     let cert = std::fs::read_to_string(config.cert_file_path)?;

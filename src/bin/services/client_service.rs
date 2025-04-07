@@ -14,7 +14,7 @@ fn hello_requests_iter(aes_key: &[u8; 16]) -> impl Stream<Item = HelloRequest> {
     })
 }
 
-const AES_KEY: [u8; 16] = [0x00; 16]; // Please change your encryption key later or use .env
+const AES_KEY: [u8; 16] = [0x00; 16];
 
 pub async fn single_rpc(client: &mut SimulationClient<Channel>) {
     let original_message = "Hello from client!";

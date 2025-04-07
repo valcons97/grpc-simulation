@@ -1,6 +1,7 @@
+use std::convert::TryInto;
 use std::env;
 
-#[allow(dead_code)]
+#[derive(Debug)]
 pub struct Global {
     pub cert_file_path: String,
     pub server_root_file_path: String,
@@ -15,37 +16,33 @@ pub struct Global {
 
 impl Global {
     pub fn new() -> Self {
-        let cert_file_path = env::var("CLIENT_CERT_PATH").expect("CLIENT_CERT_PATH not set");
-        let server_root_file_path = env::var("SERVER_ROOT_PATH").expect("SERVER_ROOT_PATH not set");
-        let key_file_path = env::var("CLIENT_KEY_PATH").expect("CLIENT_KEY_PATH not set");
-        let server_url = env::var("SERVER_URL").expect("SERVER_URL not set");
-        let server_domain_name =
-            env::var("SERVER_DOMAIN_NAME").expect("SERVER_DOMAIN_NAME not set");
+        dotenv::dotenv().ok();
 
-        let server_cert_path = env::var("SERVER_CERT_PATH").expect("SERVER_CERT_PATH not set");
-        let server_key_path = env::var("SERVER_KEY_PATH").expect("SERVER_KEY_PATH not set");
-        let server_client_path =
-            env::var("SERVER_CLIENT_PATH").expect("SERVER_CLIENT_PATH not set");
-
-        let aes_key_str = env::var("AES_KEY").expect("AES_KEY not set");
-        let aes_key: Vec<u8> = aes_key_str.as_bytes().to_vec();
-
-        if aes_key.len() != 16 {
-            panic!("AES key must be 16 bytes long.");
-        }
-
-        let aes_key: [u8; 16] = aes_key.try_into().expect("AES key conversion failed");
-
-        Global {
-            cert_file_path,
-            server_root_file_path,
-            key_file_path,
-            server_url,
-            server_domain_name,
-            server_cert_path,
-            server_key_path,
-            server_client_path,
-            aes_key,
+        Self {
+            cert_file_path: load_env("CLIENT_CERT_PATH"),
+            server_root_file_path: load_env("SERVER_ROOT_PATH"),
+            key_file_path: load_env("CLIENT_KEY_PATH"),
+            server_url: load_env("SERVER_URL"),
+            server_domain_name: load_env("SERVER_DOMAIN_NAME"),
+            server_cert_path: load_env("SERVER_CERT_PATH"),
+            server_key_path: load_env("SERVER_KEY_PATH"),
+            server_client_path: load_env("SERVER_CLIENT_PATH"),
+            aes_key: load_aes_key("AES_KEY"),
         }
     }
+}
+
+fn load_env(var_name: &str) -> String {
+    env::var(var_name).expect(&format!("{} not set", var_name))
+}
+
+fn load_aes_key(var_name: &str) -> [u8; 16] {
+    let aes_key_str = env::var(var_name).expect(&format!("{} not set", var_name));
+    let aes_key: Vec<u8> = aes_key_str.as_bytes().to_vec();
+
+    if aes_key.len() != 16 {
+        panic!("AES key must be 16 bytes long.");
+    }
+
+    aes_key.try_into().expect("AES key conversion failed")
 }

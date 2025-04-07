@@ -403,6 +403,7 @@ dependencies = [
  "http",
  "prost",
  "rand",
+ "regex",
  "tokio",
  "tokio-stream",
  "tonic",

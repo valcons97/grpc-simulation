@@ -1,5 +1,6 @@
 use std::env;
 
+#[allow(dead_code)]
 pub struct Global {
     pub cert_file_path: String,
     pub server_root_file_path: String,

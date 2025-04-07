@@ -2,7 +2,8 @@ use crate::global::Global;
 use crate::proto::proto::simulation_server::SimulationServer;
 use crate::service::SimulationService;
 use dotenv::dotenv;
-use std::env;
+use regex::Regex;
+use std::net::SocketAddr;
 use tonic::transport::{Certificate, Identity, Server, ServerTlsConfig};
 
 #[path = "services/static_variables.rs"]
@@ -25,7 +26,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client_ca_cert = std::fs::read_to_string(config.server_client_path)?;
     let client_ca_cert = Certificate::from_pem(client_ca_cert);
 
-    let addr = "[::1]:50051".parse()?;
+    let addr: SocketAddr = Regex::new(r"^https://")?
+        .replace(&config.server_url, "")
+        .parse()
+        .expect("Failed to parse server URL");
+
     let service = SimulationService::default();
 
     let tls = ServerTlsConfig::new()

@@ -15,6 +15,7 @@ aes = "0.7"
 block-modes = "0.8"  
 hex = "0.4" 
 rand = "0.8"
+http = "0.2"  
 
 [build-dependencies]
 tonic-build = "0.11"

@@ -1,7 +1,7 @@
 use crate::client_service::*;
+use crate::global::Global;
 use crate::proto::proto::simulation_client::SimulationClient;
-use dotenv::dotenv;
-use std::env;
+use http::Uri;
 use std::time::Duration;
 use tonic::transport::{Certificate, Channel, ClientTlsConfig, Identity};
 
@@ -9,29 +9,31 @@ use tonic::transport::{Certificate, Channel, ClientTlsConfig, Identity};
 mod client_service;
 #[path = "services/crypto.rs"]
 mod crypto;
+#[path = "services/static_variables.rs"]
+mod global;
 #[path = "services/proto.rs"]
 mod proto;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    dotenv().ok();
+    dotenv::dotenv().ok();
 
-    let cert_file_path = env::var("CLIENT_CERT_PATH").expect("CLIENT_CERT_PATH not set");
-    let server_root_file_path = env::var("SERVER_ROOT_PATH").expect("SERVER_ROOT_PATH not set");
-    let key_file_path = env::var("CLIENT_KEY_PATH").expect("CLIENT_KEY_PATH not set");
+    let config = Global::new();
 
-    let server_root_ca_cert = std::fs::read_to_string(server_root_file_path)?;
+    let server_root_ca_cert = std::fs::read_to_string(config.server_root_file_path)?;
     let server_root_ca_cert = Certificate::from_pem(server_root_ca_cert);
-    let client_cert = std::fs::read_to_string(cert_file_path)?;
-    let client_key = std::fs::read_to_string(key_file_path)?;
+    let client_cert = std::fs::read_to_string(config.cert_file_path)?;
+    let client_key = std::fs::read_to_string(config.key_file_path)?;
     let client_identity = Identity::from_pem(client_cert, client_key);
 
     let tls = ClientTlsConfig::new()
-        .domain_name("localhost")
+        .domain_name(config.server_domain_name)
         .ca_certificate(server_root_ca_cert)
         .identity(client_identity);
 
-    let channel = Channel::from_static("https://[::1]:50051")
+    let server_url: Uri = config.server_url.parse().expect("Invalid server URL");
+
+    let channel = Channel::builder(server_url)
         .tls_config(tls)?
         .connect()
         .await?;

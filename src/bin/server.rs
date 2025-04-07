@@ -1,28 +1,28 @@
+use crate::global::Global;
 use crate::proto::proto::simulation_server::SimulationServer;
 use crate::service::SimulationService;
 use dotenv::dotenv;
 use std::env;
 use tonic::transport::{Certificate, Identity, Server, ServerTlsConfig};
 
-#[path = "services/service.rs"]
-mod service;
-
+#[path = "services/static_variables.rs"]
+mod global;
 #[path = "services/proto.rs"]
 mod proto;
+#[path = "services/service.rs"]
+mod service;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
 
-    let cert_file_path = env::var("SERVER_CERT_PATH").expect("SERVER_CERT_PATH not set");
-    let key_file_path = env::var("SERVER_KEY_PATH").expect("SERVER_KEY_PATH not set");
-    let client_file_path = env::var("SERVER_CLIENT_PATH").expect("SERVER_CLIENT_PATH not set");
+    let config = Global::new();
 
-    let cert = std::fs::read_to_string(cert_file_path)?;
-    let key = std::fs::read_to_string(key_file_path)?;
+    let cert = std::fs::read_to_string(config.cert_file_path)?;
+    let key = std::fs::read_to_string(config.key_file_path)?;
     let identity = Identity::from_pem(cert, key);
 
-    let client_ca_cert = std::fs::read_to_string(client_file_path)?;
+    let client_ca_cert = std::fs::read_to_string(config.server_client_path)?;
     let client_ca_cert = Certificate::from_pem(client_ca_cert);
 
     let addr = "[::1]:50051".parse()?;

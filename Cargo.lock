@@ -400,6 +400,7 @@ dependencies = [
  "dotenv",
  "futures",
  "hex",
+ "http",
  "prost",
  "rand",
  "tokio",

@@ -153,3 +153,51 @@ impl Simulation for SimulationService {
         ))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use futures::StreamExt;
+    use tokio::sync::mpsc;
+    use tokio_stream::wrappers::ReceiverStream;
+    use tonic::Request;
+
+    fn setup_service() -> SimulationService {
+        SimulationService::new([0u8; 16]) // use a fixed AES key
+    }
+
+    #[tokio::test]
+    async fn test_unary_rpc() {
+        let service = setup_service();
+        let message = encrypt_message(&service.aes_key, "TestUser");
+        let request = Request::new(HelloRequest { message });
+
+        let response = service.unary_rpc(request).await.unwrap().into_inner();
+        let decrypted = decrypt_message(&service.aes_key, &response.message);
+
+        assert_eq!(decrypted, "You got, TestUser message!");
+    }
+
+    #[tokio::test]
+    async fn test_server_streaming_rpc() {
+        let service = setup_service();
+        let message = encrypt_message(&service.aes_key, "StreamUser");
+        let request = Request::new(HelloRequest { message });
+
+        let response = service
+            .server_streaming_rpc(request)
+            .await
+            .unwrap()
+            .into_inner();
+        let messages: Vec<_> = response
+            .map(|res| {
+                let msg = res.unwrap().message;
+                decrypt_message(&service.aes_key, &msg)
+            })
+            .collect()
+            .await;
+
+        assert_eq!(messages.len(), 3);
+        assert!(messages[0].contains("StreamUser"));
+    }
+}
